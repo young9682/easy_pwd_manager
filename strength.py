@@ -17,13 +17,13 @@ def check_strength(password):
     entropy = len(password) * math.log2(pool_size) if pool_size > 0 else 0
 
     score = 0
-    score += 20 if len(password) >= 8 else 0
-    score += 10 if len(password) >= 12 else 0
+    score += 10 if len(password) >= 8 else 0
+    score += 20 if len(password) >= 12 else 0
     score += 15 if has_upper else 0
-    score += 15 if has_lower else 0
+    score += 5 if has_lower else 0
     score += 15 if has_nums else 0
     score += 10 if has_syms else 0
-    score += 10 if entropy > 60 else 0
+    score += 25 if entropy > 60 else 0
 
     level = "强" if score >= 80 else "中" if score >= 60 else "弱"
 

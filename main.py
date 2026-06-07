@@ -40,7 +40,7 @@ def input_password():
 
 def generate_password():
     """生成密码并保存"""
-    length_input = eg.integerbox('密码长度', default=16, lowerbound=4, upperbound=64)
+    length_input = eg.integerbox('密码长度(4-64)', default=16, lowerbound=4, upperbound=64)
     if length_input is None:
         return
 
