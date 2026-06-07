@@ -36,11 +36,11 @@
 
 ```
 easy_psw_manager/
-├── main.py          # 主程序（easygui 图形界面）
-├── database.py      # SQLite 数据库操作（双表结构）
+├── main.py          # 主程序
+├── database.py      # SQLite数据库操作
 ├── password_gen.py  # 密码生成逻辑
 ├── strength.py      # 密码强度检测
-├── passwords.db     # SQLite 数据库（运行时生成）
+├── passwords.db     # SQLite数据库
 └── README.md        # 项目说明文档
 ```
 
