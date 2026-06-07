@@ -21,10 +21,12 @@
 | 功能 | 说明 |
 |------|------|
 | 🔐 生成密码 | 可配置长度和字符集（大小写、数字、符号） |
+| ✏️ 输入密码 | 手动输入密码并保存 |
+| 🔄 修改密码 | 5种模式：手动/随机/纯数字/纯字母/数字+字母 |
 | 💾 保存记录 | 使用 SQLite 存储密码信息 |
-| 📋 查看列表 | 查看所有保存的密码记录 |
+| 📋 查看列表 | 查看密码详情及历史修改记录 |
 | 📋 复制密码 | 一键复制密码到剪贴板 |
-| 🗑️ 删除记录 | 选择指定密码删除 |
+| 🗑️ 删除记录 | 选择指定凭据删除（级联删除所有密码记录） |
 | 💪 强度检测 | 实时显示密码强度和熵值 |
 | 🖼️ 图形界面 | 使用 easygui 弹窗交互 |
 
@@ -108,14 +110,21 @@ python main.py
 - 查看生成的密码和强度
 - 输入服务名称和用户名保存
 
-**2. 查看密码列表**
-- 从下拉列表中选择要查看的密码
-- 显示完整密码详情（服务名称、用户名、密码、长度、强度）
+**2. 输入密码**
+- 输入服务名称、用户名、密码
+- 自动检测密码强度并保存
+
+**3. 修改密码**
+- 选择已有凭据
+- 选择生成模式（手动/随机/纯数字/纯字母/数字+字母）
+- 确认后保存新密码，旧密码保留为历史记录
+
+**4. 查看密码列表**
+- 显示当前密码及历史修改记录
 - 可选择复制密码到剪贴板
 
-**3. 删除密码**
-- 从下拉列表中选择要删除的密码
-- 确认后删除该记录
+**5. 删除密码**
+- 选择凭据后确认删除，级联删除所有关联密码记录
 
 ---
 
@@ -126,14 +135,16 @@ python main.py
 | 函数 | 功能 | 说明 |
 |------|------|------|
 | `init_db()` | 初始化数据库 | 创建 `credentials` 和 `password_analysis` 表 |
-| `add_password(...)` | 保存密码 | 插入凭据和密码分析记录，使用参数化查询防止 SQL 注入 |
-| `get_all_passwords()` | 获取所有密码 | 联表查询全部记录，按创建时间倒序排列 |
-| `delete_password(pid)` | 删除密码 | 根据 ID 删除指定记录（级联删除关联分析） |
+| `add_credential(name, username)` | 创建凭据 | 插入新凭据，返回凭据 ID |
+| `add_password_analysis(...)` | 保存密码分析 | 插入密码及特征分析记录 |
+| `get_all_credentials()` | 获取所有凭据 | 联表查询最新密码，按创建时间倒序 |
+| `get_password_history(cred_id)` | 获取密码历史 | 查询指定凭据的所有密码修改记录 |
+| `delete_credential(cred_id)` | 删除凭据 | 根据 ID 删除凭据及所有关联密码记录 |
 
 **关键技术点：**
 - 使用 `sqlite3` 标准库，无需额外安装
 - 参数化查询 (`?` 占位符) 防止 SQL 注入
-- 外键约束 + 级联删除，删除凭据时自动删除关联的密码分析
+- 外键约束 + 级联删除，1 对多关系
 - 自动创建数据库文件（首次运行时）
 
 ---
@@ -207,9 +218,11 @@ python main.py
 | 函数 | 功能 |
 |------|------|
 | `init()` | 初始化数据库连接 |
-| `generate()` | 弹窗输入密码参数，生成并保存密码 |
-| `list_passwords()` | 显示密码列表，支持查看详情和复制密码 |
-| `delete_password()` | 选择密码并确认删除 |
+| `input_password()` | 手动输入密码并保存 |
+| `generate_password()` | 随机生成密码并保存 |
+| `change_password()` | 修改密码，支持5种生成模式 |
+| `list_passwords()` | 显示密码列表及历史记录，支持复制 |
+| `delete_password()` | 删除凭据及所有关联密码记录 |
 | `main()` | 主循环，显示主菜单 |
 
 **easygui 组件使用：**
@@ -235,18 +248,20 @@ python main.py
 ├─────────────────────┤         ├─────────────────────────┤
 │ PK id               │───┐     │ PK id                   │
 │    name             │   │     │ FK credential_id        │
-│    username         │   │     │    length               │
-│    password         │   └────>│    has_uppercase        │
-│    created_at       │ 1   1   │    has_lowercase        │
-└─────────────────────┘         │    has_numbers          │
+│    username         │   ├────>│    password             │
+│    created_at       │ 1   n   │    length               │
+└─────────────────────┘         │    has_uppercase        │
+                                │    has_lowercase        │
+                                │    has_numbers          │
                                 │    has_symbols          │
                                 │    strength_score       │
+                                │    created_at           │
                                 └─────────────────────────┘
 
 关系说明：
-- credentials (1) ──── (1) password_analysis
-- 一条凭据记录对应一条密码分析记录
-- 删除凭据时，关联的密码分析记录级联删除
+- credentials (1) ──── (n) password_analysis
+- 一条凭据可对应多条密码记录（密码修改历史）
+- 删除凭据时，关联的所有密码记录级联删除
 ```
 
 ### 逻辑模型
@@ -258,7 +273,6 @@ python main.py
 | id | INTEGER | PK, AUTOINCREMENT | 主键 |
 | name | TEXT | NOT NULL | 服务名称（如 "Google"） |
 | username | TEXT | - | 用户名（可选） |
-| password | TEXT | NOT NULL | 加密后的密码 |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 
 **实体：password_analysis（密码分析）**
@@ -267,12 +281,17 @@ python main.py
 |------|------|------|------|
 | id | INTEGER | PK, AUTOINCREMENT | 主键 |
 | credential_id | INTEGER | FK → credentials.id | 关联凭据 |
+| password | TEXT | NOT NULL | 密码 |
 | length | INTEGER | - | 密码长度 |
 | has_uppercase | INTEGER | - | 是否含大写字母（0/1） |
 | has_lowercase | INTEGER | - | 是否含小写字母（0/1） |
 | has_numbers | INTEGER | - | 是否含数字（0/1） |
 | has_symbols | INTEGER | - | 是否含符号（0/1） |
 | strength_score | INTEGER | - | 强度评分（0-100） |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**关系：credentials (1) → (n) password_analysis**
+- 一条凭据可对应多条密码记录，支持密码修改历史
 
 ### 物理模型（SQLite 实现）
 
@@ -283,8 +302,7 @@ CREATE TABLE credentials (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     username TEXT,
-    password TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
@@ -294,12 +312,14 @@ CREATE TABLE credentials (
 CREATE TABLE password_analysis (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     credential_id INTEGER NOT NULL,
+    password TEXT NOT NULL,
     length INTEGER,
     has_uppercase INTEGER,
     has_lowercase INTEGER,
     has_numbers INTEGER,
     has_symbols INTEGER,
     strength_score INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (credential_id) REFERENCES credentials(id) ON DELETE CASCADE
 );
 ```
